@@ -6,6 +6,7 @@ from nnfs.util import sigmoid, softmax
 
 
 class ActivationFunction(Enum):
+    NONE = "none"
     SIGMOID = "sigmoid"
     SOFTMAX = "softmax"
 
@@ -13,8 +14,8 @@ class ActivationFunction(Enum):
 @dataclass
 class Layer:
     # neurons: list[Neuron]
-    weights: Matrix  # n_neurons x n_inputs
-    biases: Matrix  # n_neurons x 1
+    weights: Matrix  # n_inputs x n_neurons
+    biases: Matrix  # 1 x n_neurons
     _activation_function: Callable[[list[float]], list[float]]
 
     @property
@@ -23,6 +24,8 @@ class Layer:
 
     @activation_function.setter
     def activation_function(self, af: Callable[[list[float]], list[float]]):
+        if af == ActivationFunction.NONE:
+            self._activation_function = lambda xs: xs
         if af == ActivationFunction.SIGMOID:
             self._activation_function = lambda xs: [sigmoid(x) for x in xs]
         if af == ActivationFunction.SOFTMAX:
@@ -32,7 +35,7 @@ class Layer:
         self,
         n_neurons: int,
         n_inputs: int,
-        activation_function=ActivationFunction.SIGMOID,
+        activation_function=ActivationFunction.NONE,
     ):
         self.weights = Matrix(n_neurons, n_inputs)
         self.biases = Matrix(n_neurons, 1)
@@ -43,14 +46,14 @@ class Layer:
         cls,
         weights: Matrix,
         biases: Matrix,
-        activation_function=ActivationFunction.SIGMOID,
+        activation_function=ActivationFunction.NONE,
     ):
         if not isinstance(weights, Matrix):
             weights = Matrix.from_rows(weights)
         if not isinstance(biases, Matrix):
-            biases = Matrix.from_col(biases)
+            biases = Matrix.from_row(biases)
 
-        if weights.n_rows != biases.n_rows or biases.n_cols != 1:
+        if weights.n_cols != biases.n_cols or biases.n_rows != 1:
             raise DimensionError
         layer = cls(weights.n_rows, weights.n_cols)
         layer.weights = weights
@@ -59,8 +62,9 @@ class Layer:
         return layer
 
     def forward(self, inputs: Matrix) -> Matrix:
-        return Matrix.from_col(
-            self._activation_function(
-                (self.weights * inputs + self.biases).transpose().rows[0]
-            )
+        return Matrix.from_rows(
+            [
+                self._activation_function((r + self.biases)._rows[0])
+                for r in (inputs * self.weights).rows()
+            ]
         )

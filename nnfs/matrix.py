@@ -12,43 +12,58 @@ class DimensionError(Exception):
 class Matrix:
     n_rows: int
     n_cols: int
-    rows: list[list[float]]
+    _rows: list[list[float]]
 
     def __init__(self, n_rows: int, n_cols: int):
         self.n_rows = n_rows
         self.n_cols = n_cols
-        self.rows = [[0.0 for _ in range(n_cols)] for _ in range(n_rows)]
+        self._rows = [[0.0 for _ in range(n_cols)] for _ in range(n_rows)]
 
     @classmethod
     def from_rows(cls, rows: list[list[float]]):
         matrix = cls(len(rows), len(rows[0]))
-        matrix.rows = rows
+        matrix._rows = rows
         return matrix
 
     @classmethod
     def from_row(cls, row: list[float]):
         matrix = cls(1, len(row))
-        matrix.rows = [row]
+        matrix._rows = [row]
         return matrix
 
     @classmethod
     def from_col(cls, col: list[float]):
         matrix = cls(len(col), 1)
-        matrix.rows = [[x] for x in col]
+        matrix._rows = [[x] for x in col]
         return matrix
 
     def __getitem__(self, index: int) -> list[float]:
-        return self.rows[index]
+        return self._rows[index]
 
     def __setitem__(self, index: int, value: list[float]):
-        self.rows[index] = value
+        self._rows[index] = value
 
-    def transpose(self) -> "Matrix":
+    def rows(self) -> list["Matrix"]:
+        return [Matrix.from_row(row) for row in self._rows]
+
+    def cols(self) -> list["Matrix"]:
+        return [Matrix.from_col(col) for col in self.transposed()._rows]
+
+    def row(self, index: int) -> "Matrix":
+        return self.rows()[index]
+
+    def col(self, index: int) -> "Matrix":
+        return self.cols()[index]
+
+    def transposed(self) -> "Matrix":
         transposed = Matrix(self.n_cols, self.n_rows)
         for i in range(self.n_rows):
             for j in range(self.n_cols):
                 transposed[j][i] = self[i][j]
         return transposed
+
+    def to_list(self) -> list[list[float]]:
+        return self._rows
 
     def __add__(self, other: "Matrix") -> "Matrix":
         if self.n_rows != other.n_rows or self.n_cols != other.n_cols:
@@ -63,7 +78,7 @@ class Matrix:
         if self.n_cols != other.n_rows:
             raise DimensionError
         result = Matrix(self.n_rows, other.n_cols)
-        other = other.transpose()
+        other = other.transposed()
         for i in range(self.n_rows):
             for j in range(other.n_rows):  # transposed
                 result[i][j] = dot(self[i], other[j])
