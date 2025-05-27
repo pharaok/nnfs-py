@@ -1,4 +1,4 @@
-from nnfs.util import clamp, dot, clip
+from nnfs.util import clamp, dot
 from nnfs.matrix import Matrix
 import math
 
@@ -15,7 +15,9 @@ class Crossentropy(Loss):
 
         self.outputs = Matrix(inputs.n_rows, 1)
         for i in range(inputs.n_rows):
-            self.outputs[i][0] = -math.log(clip(dot(inputs._rows[i], y_true._rows[i])))
+            self.outputs[i][0] = -math.log(
+                max(1e-7, dot(inputs._rows[i], y_true._rows[i]))
+            )
         return self.outputs
 
     def backward(self, dvalues: Matrix, y_true: Matrix):

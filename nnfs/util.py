@@ -1,10 +1,5 @@
 def dot(a: list[float], b: list[float]) -> float:
-    # this was faster than sum(x * y for x, y in zip(a, b))
-    # at least on pypy3
-    dot_prod = 0
-    for x, y in zip(a, b):
-        dot_prod += x * y
-    return dot_prod
+    return sum(x * y for x, y in zip(a, b))
 
 
 def clamp(x: float, min_value: float, max_value: float) -> float:

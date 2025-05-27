@@ -22,25 +22,6 @@ class Layer:
         self.biases = Matrix(1, n_neurons)
         self.activation_function = activation_function()
 
-    # @classmethod
-    # def from_weights_and_biases(
-    #     cls,
-    #     weights: Matrix,
-    #     biases: Matrix,
-    #     activation_function=ReLU,
-    # ):
-    #     if not isinstance(weights, Matrix):
-    #         weights = Matrix.from_rows(weights)
-    #     if not isinstance(biases, Matrix):
-    #         biases = Matrix.from_row(biases)
-    #
-    #     if weights.n_cols != biases.n_cols or biases.n_rows != 1:
-    #         raise DimensionError
-    #     layer = cls(weights.n_rows, weights.n_cols, activation_function)
-    #     layer.weights = weights
-    #     layer.biases = biases
-    #     return layer
-
     def forward(self, inputs: Matrix, *args) -> Matrix:
         self.inputs = inputs
         z = inputs @ self.weights + self.biases

@@ -1,165 +1,113 @@
 from nnfs.layer import Layer
 from nnfs.matrix import Matrix
-from nnfs.activation import Softmax, Softmax_Crossentropy
-from nnfs.loss import Crossentropy
+from nnfs.activation import Softmax_Crossentropy
 from nnfs.data import read_images, read_labels
 from nnfs.optimizer import SGD
-import timeit
-import cProfile
-import pstats
-
-# import numpy as np
+import pickle
 
 import matplotlib.pyplot as plt
 
-
-# Copyright (c) 2015 Andrej Karpathy
-# License: https://github.com/cs231n/cs231n.github.io/blob/master/LICENSE
-# Source: https://cs231n.github.io/neural-networks-case-study/
-# def create_data(samples, classes):
-#     X = np.zeros((samples * classes, 2))
-#     y = np.zeros(samples * classes, dtype="uint8")
-#     for class_number in range(classes):
-#         ix = range(samples * class_number, samples * (class_number + 1))
-#         r = np.linspace(0.0, 1, samples)
-#         t = (
-#             np.linspace(class_number * 4, (class_number + 1) * 4, samples)
-#             + np.random.randn(samples) * 0.2
-#         )
-#         X[ix] = np.c_[r * np.sin(t * 2.5), r * np.cos(t * 2.5)]
-#         y[ix] = class_number
-#     return X, y
+# Set to True to load from pickle files, False to train from scratch
+LOAD_FROM_PICKLE = True
 
 
-# m1 = Matrix.from_rows([[1, 2, 3], [4, 6, 3], [9, 9, 7]])
-# tr = Matrix.from_rows([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
-# s = Softmax()
-# ll = Crossentropy()
-#
-# s.forward(m1)
-# print(s.outputs)
-#
-# m1 = m1 - m1.max(axis=1)
-# s.forward(m1)
-# print(s.outputs)
-#
-# print(ll.calculate(s.outputs, tr))
-# ll.backward(s.outputs, tr)
-# print("1,", s.outputs)
-# print("1,", ll.dinputs)
-#
-# sl = Softmax_Crossentropy()
-#
-# print(sl.forward(m1, tr))
-#
-# sl.backward(sl.outputs, tr)
-# print("3,", sl.outputs)
-# print("3,", sl.dinputs)
-#
-#
-# exit()
+if not LOAD_FROM_PICKLE:
+    dense1 = Layer(784, 256)
+    dense2 = Layer(256, 64)
+    dense3 = Layer(64, 10, activation_function=Softmax_Crossentropy)
+    optimizer = SGD(0.01, decay=1e-6)
 
-# N = 20
-# X, y = create_data(N, 3)
-# plt.scatter(x[:, 0], x[:, 1], c=y, s=40, cmap="viridis")
-# plt.show()
+    x_test = read_images("data/train-images-idx3-ubyte")
+    y_test = read_labels("data/train-labels-idx1-ubyte")
+    print("Loaded training dataset")
 
-# mX = Matrix.from_rows(X).map(float)
-# mY = Matrix(mX.n_rows, 3).map(float)
-# for i in range(mX.n_rows):  # one-shot encoding
-#     mY[i][y[i]] = 1.0
-# print(mX.n_rows, mX.n_cols)
-# print(mY.n_rows, mY.n_cols)
-
-
-dense1 = Layer(784, 256)
-dense2 = Layer(256, 64)
-dense3 = Layer(64, 10, activation_function=Softmax_Crossentropy)
-optimizer = SGD(0.01, decay=1e-6, momentum=0.9)
-
-# cProfile.run(
-#     """
-# for _ in range(1000):
-#     dense1.forward(mX)
-#     dense2.forward(dense1.outputs, mY)
-#     dense2.backward(dense2.outputs, mY)
-#     dense1.backward(dense2.dinputs)
-# """,
-#     sort="tottime",
-# )
-# exit(0)
-
-
-x_test = read_images("data/train-images-idx3-ubyte")
-y_test = read_labels("data/train-labels-idx1-ubyte")
-print("Loaded dataset")
-# print(x_train)
-# print(y_train)
-# exit(0)
-
-for epoch in range(1):
     batch_size = 100
-    batch_start = epoch * batch_size
-    x_batch = Matrix.from_rows(x_test[batch_start : batch_start + batch_size]).map(
-        float
-    )
-    y_batch = Matrix(batch_size, 10)
-    for i in range(batch_size):
-        y_batch[i][y_test[batch_start + i]] = 1.0
+    for epoch in range(60000 // batch_size):
+        batch_start = epoch * batch_size
+        x_batch = Matrix.from_rows(x_test[batch_start : batch_start + batch_size]).map(
+            float
+        )
+        y_batch = Matrix(batch_size, 10)
+        for i in range(batch_size):
+            y_batch[i][y_test[batch_start + i]] = 1.0
 
-    dense1.forward(x_batch)
-    dense2.forward(dense1.outputs)
-    loss = dense3.forward(dense2.outputs, y_batch)
+        dense1.forward(x_batch)
+        dense2.forward(dense1.outputs)
+        loss = dense3.forward(dense2.outputs, y_batch)
 
-    dense3.backward(dense3.outputs, y_batch)
-    dense2.backward(dense3.dinputs)
-    dense1.backward(dense2.dinputs)
+        dense3.backward(dense3.outputs, y_batch)
+        dense2.backward(dense3.dinputs)
+        dense1.backward(dense2.dinputs)
 
-    optimizer.pre_update_params()
-    optimizer.update_params(dense1)
-    optimizer.update_params(dense2)
-    optimizer.update_params(dense3)
-    optimizer.post_update_params()
+        optimizer.pre_update_params()
+        optimizer.update_params(dense1)
+        optimizer.update_params(dense2)
+        optimizer.update_params(dense3)
+        optimizer.post_update_params()
 
-    if (epoch % 1) == 0:
-        print(f"Iteration {epoch}: " f"Loss: {loss} ")
+        if (epoch % 1) == 0:
+            print(f"Epoch {epoch}: Loss: {loss} ")
 
-    # print(dense1.dweights)
-    # print(dense1.dbiases)
-    # print(dense2.dweights)
-    # print(dense2.dbiases)
+    print("Training complete")
 
-print("Training complete")
+    with open("dense1.pkl", "wb") as f:
+        pickle.dump(dense1, f)
+    with open("dense2.pkl", "wb") as f:
+        pickle.dump(dense2, f)
+    with open("dense3.pkl", "wb") as f:
+        pickle.dump(dense3, f)
+else:
+    with open("dense1.pkl", "rb") as f:
+        dense1 = pickle.load(f)
+    with open("dense2.pkl", "rb") as f:
+        dense2 = pickle.load(f)
+    with open("dense3.pkl", "rb") as f:
+        dense3 = pickle.load(f)
 
-x_test = read_images("data/train-images-idx3-ubyte")
-y_test = read_labels("data/train-labels-idx1-ubyte")
-print("Loaded dataset")
+    print("Loaded pretrained model")
+
+
+x_test = read_images("data/t10k-images-idx3-ubyte")
+y_test = read_labels("data/t10k-labels-idx1-ubyte")
+print("Loaded testing dataset")
+
+x = Matrix.from_rows(x_test).map(float)
+
+y = Matrix(x.n_rows, 10)
+for i in range(x.n_rows):
+    y[i][y_test[i]] = 1.0
+
+dense1.forward(x)
+dense2.forward(dense1.outputs)
+dense3.forward(dense2.outputs, y)
+print("Testing complete")
+
+guesses = dense3.outputs.argmax(axis=1)
+correct = 0
+for i in range(x.n_rows):
+    if guesses[i][0] == y_test[i]:
+        correct += 1
+accuracy = correct / x.n_rows
+print(f"Test accuracy: {accuracy}")
+print(f"Correct guesses: {correct} out of {x.n_rows}")
+
 
 current_index = 0
 
 
-def guess():
-    global current_index
-    i = current_index
-    dense1.forward(Matrix.from_row(x_test[i]).map(float))
-    dense2.forward(dense1.outputs)
-    dense3.forward(dense2.outputs, Matrix(1, 10).map(float))
-    guess_label = dense3.outputs.argmax(axis=1)[i]
-    return guess_label
-
-
-def plot_image(index):
+def plot_image(idx):
     plt.clf()
     image = [[0] * 28 for _ in range(28)]
     for i in range(28):
         for j in range(28):
-            image[i][j] = x_test[index][i * 28 + j] / 255.0
+            image[i][j] = x_test[idx][i * 28 + j] / 255.0
 
     plt.imshow(image, cmap="gray")
 
-    plt.title(f"Image {index+1}/{len(x_test)}: {y_test[index]} (guessed: {guess()})")
+    g = guesses[idx][0]
+    plt.title(f"Image {idx+1}/{len(x_test)}: {y_test[idx]} (guessed: {g})")
     plt.axis("off")
-    plt.show()
+    plt.draw()
 
 
 def on_key(event):
@@ -174,8 +122,7 @@ def on_key(event):
         plt.close()
 
 
-print(plt.get_backend())
-fig = plt.figure()
+fig = plt.gcf()
 plot_image(current_index)
-fig.canvas.mpl_connect("key_press_event", on_key)
+cid = fig.canvas.mpl_connect("key_press_event", on_key)
 plt.show()
